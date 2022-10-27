@@ -29,7 +29,7 @@ def run(options, games_per_lvl=100000, exploit_freq= 1):
                        game.num_actions[p], game.num_states[p], extra_samples = 0)\
                         for p in range(num_players)]
             players = [RL(RL_learners[p],p) for p in range(num_players)]
-            if averaged_pol or learn_with_average:
+            if averaged_pol or learn_with_avg:
                 raise NotImplementedError
         elif learner_type == "obl":
             RL_learners = [learners.actor_critic(learners.softmax, learners.value_advantage,\
