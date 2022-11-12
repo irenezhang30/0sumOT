@@ -201,7 +201,7 @@ class softmax(pol_func_base):
         return grad
 
     def update(self):
-        self.thetas = np.minimum(10**2,np.maximum(-10**2,self.thetas))
+        self.thetas = np.minimum(10**2,np.maximum(-10**2,self.thetas)) # TODO why is the - sign on
         self.policy = np.exp(self.thetas)/np.sum(np.exp(self.thetas),axis=1)[:,np.newaxis]
         return self.policy
     
@@ -332,6 +332,111 @@ class kuhn_exact_solver:
 
     def calc_opt(self, opp_pol, p_id):
         opt_pol = np.zeros((6,2))
+        if p_id == 1:
+            opt_pol[3,1] = 1 # always fold with a 1 if raised
+            opt_pol[5,0] = 1 # always call with a 3 if raised
+
+            p_bet_given_card = opp_pol[0:3,0]/2
+            p_bet = np.sum(p_bet_given_card) - p_bet_given_card[1]
+            p_cards_given_bet = p_bet_given_card/p_bet
+            p_cards_given_bet[1] = 0
+            if p_cards_given_bet[0] > 0.25:
+                opt_pol[4,0] = 1
+            elif p_cards_given_bet[0] < 0.25:
+                opt_pol[4,1] = 1
+            else:
+                opt_pol[4,0] = 1/3
+                opt_pol[4,1] = 2/3
+
+            for i in range(3):
+                bet_r = 0
+                check_r = 0
+                for j in range(3):
+                    if i != j:
+                        bet_r += 0.5*opp_pol[j+3,1]
+                        if j < i:
+                            bet_r += 0.5*opp_pol[j+3,0]*2
+                            check_r += 0.5*opp_pol[j,1]*1
+                            check_r += 0.5*opp_pol[j,0]*(opt_pol[i+3,0]*2-opt_pol[i+3,1])
+                        else:
+                            bet_r += 0.5*opp_pol[j+3,0]*(-2)
+                            check_r += 0.5*opp_pol[j,1]*(-1)
+                            check_r += 0.5*opp_pol[j,0]*((-opt_pol[i+3,0]*2)-opt_pol[i+3,1])
+                if bet_r > check_r:
+                    opt_pol[i,0] = 1
+                elif check_r > bet_r:
+                    opt_pol[i,1] = 1
+                else:
+                    if i == 0:
+                        opt_pol[i,0] = 1/3
+                        opt_pol[i,1] = 2/3
+                    if i == 1:
+                        opt_pol[i,0] = 1
+                    if i == 2:
+                        opt_pol[i,0] = 1
+        else:
+            opt_pol[3,1] = 1
+            opt_pol[5,0] = 1
+            opt_pol[2,0] = 1
+
+            p_act_given_card_times_p_card = (opp_pol[0:3,:]/2)
+            belief = np.zeros((6,3))
+            for i in range(3):
+                p_act = np.sum(p_act_given_card_times_p_card, axis = 0) - p_act_given_card_times_p_card[i,:]
+                p_cards_given_act = p_act_given_card_times_p_card/p_act
+                rem_state = p_cards_given_act
+                rem_state[i,:] = 0
+                p_cards_given_state = rem_state.T
+                belief[3+i, :] = p_cards_given_state[0,:]
+                belief[i, :] = p_cards_given_state[1,:]
+            if belief[4,0] < 0.25:
+                opt_pol[4,1] = 1
+            elif belief[4,0] > 0.25:
+                opt_pol[4,0] = 1
+            else:
+                opt_pol[4,0] = 1/3 # doesn't actually matter what this is
+                opt_pol[4,1] = 2/3 # doesn't actually matter what this is
+
+            belief = belief[0:3] # discard the 2nd half of belief since we're done with it
+            opp_pol = opp_pol[3:] # same for policy
+            check_rewards = [-1, belief[1,0]-belief[1,2], 1]
+            bet_rewards = []
+            for i in range(2):
+                bet_r = 0
+                for j in range(3):
+                    if i != j:
+                        bet_r += belief[i,j] * opp_pol[j,1]
+                        if j <  i:
+                            bet_r += belief[i, j]*opp_pol[j, 0]*2
+                        else:
+                            bet_r += belief[i, j]*opp_pol[j,0]*(-2)
+                bet_rewards.append(bet_r)
+            if bet_rewards[0] > check_rewards[0]:
+                opt_pol[0,0] = 1
+            elif bet_rewards[0] < check_rewards[0]:
+                opt_pol[0, 1] = 1
+            else:
+                opt_pol[0,0] = 1/3
+                opt_pol[0,1] = 2/3
+            if bet_rewards[1] > check_rewards[1]:
+                opt_pol[1,0] = 1
+            elif bet_rewards[1] < check_rewards[1]:
+                opt_pol[1, 1] = 1
+            else:
+                opt_pol[1,1] = 1
+
+        return opt_pol
+
+
+class bridge_kuhn_exact_solver:
+
+    def __init__(self, bridge_len):
+        self.bridge_len = bridge_len
+
+    def calc_opt(self, opp_pol, p_id):
+        opt_pol = np.zeros((6+self.bridge_len,2))
+        for state in range(6,6+self.bridge_len):
+            opt_pol[state,1] = 3 # always go right
         if p_id == 1:
             opt_pol[3,1] = 1 # always fold with a 1 if raised
             opt_pol[5,0] = 1 # always call with a 3 if raised

@@ -1,6 +1,7 @@
 import numpy as np
 import random
 
+
 class player:
     state = None
     belief = None
@@ -14,17 +15,19 @@ class player:
     def action(self):
         sel_act = None
         return sel_act
-    
+
     def reset(self):
         pass
 
     def wipe_mem(self):
         pass
 
+
 class human(player):
     Q_mat = 0
-    state_hist=[]
+    state_hist = []
     r_hist = []
+
     def observe(self, observation):
         if observation[0] != -1:
             print("Current pot is: " + str(observation[1]))
@@ -45,11 +48,9 @@ class human(player):
             print("fold")
         sel_act = input()
         return sel_act
-    
+
     def get_reward(self, reward):
         print("You got " + str(reward) + " coins")
-
-
 
 
 class RL(player):
@@ -63,20 +64,20 @@ class RL(player):
 
     def wipe_mem(self):
         self.buffer = []
-        if isinstance(self.learner,list):
+        if isinstance(self.learner, list):
             for learner in self.learner:
                 learner.wipe_memory()
         else:
             self.learner.wipe_memory()
 
     def reset(self):
-        if isinstance(self.learner,list):
+        if isinstance(self.learner, list):
             for learner in self.learner:
                 learner.reset()
         else:
             self.learner.reset()
             self.opt_pol = self.learner.opt_pol
-    
+
     def observe(self, observation, fict=False):
         self.state = observation[0]
         if not fict:
@@ -97,6 +98,7 @@ class RL(player):
         self.buffer[-1]["a"] = act
         return act
 
+
 class fixed_pol(player):
     opt_pol = None
 
@@ -109,7 +111,7 @@ class fixed_pol(player):
     def observe(self, observation, fict=False):
         self.state = observation[0]
         self.r = observation[1]
-    
+
     def action(self):
         probs = self.opt_pol[self.state, :]
         act = np.argmax(np.random.multinomial(1, pvals=probs))
@@ -118,14 +120,14 @@ class fixed_pol(player):
 
 class OBL(RL):
     belief = 0
-    
-    def __init__(self, learner, player_id, fict_game, belief_iters = 10000):
+
+    def __init__(self, learner, player_id, fict_game, belief_iters=10000):
         self.belief_iters = belief_iters
         self.belief_buff = []
         self.pol_buff = []
         super().__init__(learner, player_id)
         self.fict_game = fict_game
-        self.avg_pol = np.ones_like(self.opt_pol)/self.opt_pol.shape[1]    
+        self.avg_pol = np.ones_like(self.opt_pol) / self.opt_pol.shape[1]
 
     def set_other_players(self, other_players):
         self.other_players = other_players.copy()
@@ -137,41 +139,48 @@ class OBL(RL):
         if not fict:
             if self.state != -1:
                 belief_probs = self.belief[self.state, :]
-                #Here we do OBL
+                # Here we do OBL
                 res = -1
                 while res != 0:
-                    belief_state = np.argmax(np.random.multinomial(1, pvals=belief_probs))
+                    belief_state = np.argmax(
+                        np.random.multinomial(1, pvals=belief_probs)
+                    )
                     res = self.fict_game.set_state(self.state, belief_state, self.id)
                     if res == -1:
                         false_prob = belief_probs[belief_state]
-                        belief_probs[:] += false_prob/(belief_probs.size-1)
-                        belief_probs[belief_state] = 0 # set prob to 0 if it was an impossible state
+                        belief_probs[:] += false_prob / (belief_probs.size - 1)
+                        belief_probs[
+                            belief_state
+                        ] = 0  # set prob to 0 if it was an impossible state
                 act = self.action()
-                #if self.state == 0:
+                # if self.state == 0:
                 #    import pdb; pdb.set_trace()
-                
+
                 self.fict_game.action(act)
                 while self.fict_game.curr_player != self.id:
                     curr_player = self.other_players[self.fict_game.curr_player]
                     other_p_obs = self.fict_game.observe()
                     curr_player.observe(other_p_obs, fict=True)
-                    
+
                     other_p_act = curr_player.action()
                     self.fict_game.action(other_p_act)
                 next_obs = self.fict_game.observe()
                 s_prime = next_obs[0]
                 r = next_obs[1]
-                self.buffer.append({"s":self.state, "a": act, "r":r, "s'":s_prime})
+                self.buffer.append({"s": self.state, "a": act, "r": r, "s'": s_prime})
             else:
                 self.learner.update_memory([(self.buffer, None)])
                 self.opt_pol = self.learner.learn()
-                
+
     def action(self):
         probs = self.opt_pol[self.state, :]
         act = np.argmax(np.random.multinomial(1, pvals=probs))
         return act
-    
+
     def add_to_mem(self):
+        """
+        Add episodes to dataset for learning belief and policy averaging
+        """        
         for i in range(self.belief_iters):
             self.fict_game.start_game()
             while not self.fict_game.ended:
@@ -185,27 +194,35 @@ class OBL(RL):
                 self.fict_game.action(act)
                 if p_id == self.id:
                     hidden_state = self.fict_game.get_hidden(self.id)
-                    self.belief_buff.append({'s':self.state, 'hidden':hidden_state})
-                    self.pol_buff.append({'s':self.state, 'a':act, 'probs':self.opt_pol[self.state, :]}) 
+                    self.belief_buff.append({"s": self.state, "hidden": hidden_state})
+                    self.pol_buff.append(
+                        {
+                            "s": self.state,
+                            "a": act,
+                            "probs": self.opt_pol[self.state, :],
+                        }
+                    )
 
     def update_belief(self):
+        """Initialize belief (|state|x|hidden state|), fill in entries w/ count-based estimate from dataset."""        
         num_hidden = len(self.fict_game.poss_hidden)
         num_states = self.opt_pol.shape[0]
         new_belief = np.ones((num_states, num_hidden))
         for elem in self.belief_buff:
-            new_belief[elem['s'], elem['hidden']] += 1
-        new_belief /= np.sum(new_belief,1,keepdims=True)
+            new_belief[elem["s"], elem["hidden"]] += 1
+        new_belief /= np.sum(new_belief, 1, keepdims=True)
         self.belief = new_belief
-    
+
     def learn_avg_pol(self):
+        """Initialize policy (|state|x|hidden state|), fill in entries w/ count-based estimate from dataset."""        
         N = np.zeros(self.opt_pol.shape)
         for elem in self.pol_buff:
-            state = elem['s']
-            N[state,:] += elem['probs']
-        pi = N/np.sum(N,axis=1)[:,np.newaxis]
+            state = elem["s"]
+            N[state, :] += elem["probs"]
+        pi = N / np.sum(N, axis=1)[:, np.newaxis]
         for i, s in enumerate(pi):
             if np.all(np.isnan(s)):
-                pi[i] = np.ones(s.shape)/s.size
+                pi[i] = np.ones(s.shape) / s.size
         self.avg_pol = pi
 
     def update_mem_and_bel(self):
@@ -213,10 +230,14 @@ class OBL(RL):
         self.update_belief()
         self.learn_avg_pol()
 
+
 class OT_RL(RL):
     belief = 0
+
+    def __init__(
+        self, learner, player_id, fict_game, belief_iters=10000, averaging="FSP_style"
+    ):
     
-    def __init__(self, learner, player_id, fict_game, belief_iters = 10000, averaging="FSP_style"):
         self.curr_lvl = 0
         self.belief_iters = belief_iters
         self.belief_buff = []
@@ -229,7 +250,7 @@ class OT_RL(RL):
         self.buffer = [[]]
         self.fict_game = fict_game
         self.beliefs = []
-        self.avg_pol = np.ones_like(self.opt_pol)/self.opt_pol.shape[1]    
+        self.avg_pol = np.ones_like(self.opt_pol) / self.opt_pol.shape[1]
         self.curr_opp_lvl = 0
         self.learn_avg = averaging == "FSP_style"
         self.ot_lvls = 10
@@ -243,21 +264,25 @@ class OT_RL(RL):
         self.r = observation[1]
         if not fict:
             if self.state != -1:
-                for lvl in range(max(self.curr_lvl - self.ot_lvls, 0),self.curr_lvl):
+                for lvl in range(max(self.curr_lvl - self.ot_lvls, 0), self.curr_lvl):
                     belief_probs = self.beliefs[lvl][self.state, :]
-                    #Here we do OBL
+                    # Here we do OBL
                     res = -1
                     while res != 0:
-                        belief_state = np.argmax(np.random.multinomial(1, pvals=belief_probs))
-                        res = self.fict_game.set_state(self.state, belief_state, self.id)
-                        #if res == -1:
-                            #false_prob = belief_probs[belief_state]
-                            #belief_probs[:] += false_prob/(belief_probs.size-1)
-                            #belief_probs[belief_state] = 0 # set prob to 0 if it was an impossible state
+                        belief_state = np.argmax(
+                            np.random.multinomial(1, pvals=belief_probs)
+                        )
+                        res = self.fict_game.set_state(
+                            self.state, belief_state, self.id
+                        )
+                        # if res == -1:
+                        # false_prob = belief_probs[belief_state]
+                        # belief_probs[:] += false_prob/(belief_probs.size-1)
+                        # belief_probs[belief_state] = 0 # set prob to 0 if it was an impossible state
                     act = self.action()
-                    #if self.state == 0:
+                    # if self.state == 0:
                     #    import pdb; pdb.set_trace()
-                    
+
                     self.fict_game.action(act)
                     while self.fict_game.curr_player != self.id:
                         curr_player = self.other_players[self.fict_game.curr_player]
@@ -272,11 +297,13 @@ class OT_RL(RL):
                     next_obs = self.fict_game.observe()
                     s_prime = next_obs[0]
                     r = next_obs[1]
-                    self.buffer[lvl].append({"s":self.state, "a": act, "r":r, "s'":s_prime})
+                    self.buffer[lvl].append(
+                        {"s": self.state, "a": act, "r": r, "s'": s_prime}
+                    )
             else:
                 for lvl in range(max(self.curr_lvl - self.ot_lvls, 0), self.curr_lvl):
                     self.learner[lvl].update_memory([(self.buffer[lvl], None)])
-                    self.pols[lvl+1] = self.learner[lvl].learn()
+                    self.pols[lvl + 1] = self.learner[lvl].learn()
                 self.opt_pol = self.pols[self.curr_lvl]
                 self.curr_opp_lvl = np.random.randint(self.curr_lvl)
 
@@ -285,15 +312,19 @@ class OT_RL(RL):
             probs = self.opt_pol[self.state, :]
         else:
             probs = self.pols[lvl][self.state, :]
-            #if self.learn_avg:
+            # if self.learn_avg:
             #    probs = self.avg_pols[lvl][self.state, :]
-            #else:
+            # else:
             #    avg_pol = sum(self.pols[:lvl+1])/(lvl+1)
             #    probs = avg_pol[self.state,:]
         act = np.argmax(np.random.multinomial(1, pvals=probs))
         return act
-    
+
     def add_to_mem(self):
+        """
+        Add episodes to dataset for learning belief and policy averaging
+        (TODO: does not use OT-BL?)
+        """    
         for i in range(self.belief_iters):
             self.fict_game.start_game()
             lvl = np.random.randint(self.curr_lvl)
@@ -308,27 +339,29 @@ class OT_RL(RL):
                 self.fict_game.action(act)
                 if p_id == self.id:
                     hidden_state = self.fict_game.get_hidden(self.id)
-                    self.belief_buff.append({'s':self.state, 'hidden':hidden_state})
-                    self.pol_buff.append({'s':self.state, 'probs':self.opt_pol[self.state, :]}) 
+                    self.belief_buff.append({"s": self.state, "hidden": hidden_state})
+                    self.pol_buff.append(
+                        {"s": self.state, "probs": self.opt_pol[self.state, :]}
+                    )
 
     def update_belief(self):
         num_hidden = len(self.fict_game.poss_hidden)
         num_states = self.opt_pol.shape[0]
         new_belief = np.ones((num_states, num_hidden))
         for elem in self.belief_buff:
-            new_belief[elem['s'], elem['hidden']] += 1
-        new_belief /= np.sum(new_belief,1,keepdims=True)
+            new_belief[elem["s"], elem["hidden"]] += 1
+        new_belief /= np.sum(new_belief, 1, keepdims=True)
         self.belief = new_belief
-    
+
     def learn_avg_pol(self):
         N = np.zeros(self.opt_pol.shape)
         for elem in self.pol_buff:
-            state = elem['s']
-            N[state,:] += elem['probs']
-        pi = N/np.sum(N,axis=1)[:,np.newaxis]
+            state = elem["s"]
+            N[state, :] += elem["probs"]
+        pi = N / np.sum(N, axis=1)[:, np.newaxis]
         for i, s in enumerate(pi):
             if np.all(np.isnan(s)):
-                pi[i] = np.ones(s.shape)/s.size
+                pi[i] = np.ones(s.shape) / s.size
         self.avg_pol = pi
 
     def update_mem_and_bel(self):
@@ -342,7 +375,7 @@ class OT_RL(RL):
         else:
             self.avg_pols.append(0)
             for lvl in range(self.curr_lvl):
-                avg_pol = sum(self.pols[:lvl+1])/(lvl+1)
+                avg_pol = sum(self.pols[: lvl + 1]) / (lvl + 1)
                 self.avg_pols[lvl] = avg_pol
         self.beliefs.append(np.copy(self.belief))
         if self.curr_lvl < len(self.learner):
@@ -350,4 +383,4 @@ class OT_RL(RL):
 
     def wipe_mem(self):
         super().wipe_mem()
-        self.buffer = [[] for i in range(self.curr_lvl+1)]
+        self.buffer = [[] for i in range(self.curr_lvl + 1)]

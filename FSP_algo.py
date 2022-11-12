@@ -5,6 +5,7 @@ import logging
 from agents import learners
 from functions import calc_exploitability
 from games.kuhn import Kuhn_Poker_int_io as kuhn
+from games.bridge_kuhn import Bridge_Kuhn_Poker_int_io as bridge_kuhn
 log = logging.getLogger(__name__)
 
 class FSP:
@@ -69,7 +70,9 @@ class FSP:
 
         exploitability = []
         tic = time.perf_counter()
-        if isinstance(self.game, kuhn):
+        if isinstance(self.game, bridge_kuhn):
+            exploit_learner = learners.bridge_kuhn_exact_solver(self.game.bridge_len)
+        elif isinstance(self.game, kuhn):
             exploit_learner = learners.kuhn_exact_solver()
         else:
             #exploit_learner = learners.fitted_Q_iteration(0, (self.game.num_states[0], self.game.num_actions[0])) 

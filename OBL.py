@@ -31,11 +31,14 @@ def run(options, games_per_lvl=100000, exploit_freq= 1):
             players = [RL(RL_learners[p],p) for p in range(num_players)]
             if averaged_pol or learn_with_avg:
                 raise NotImplementedError
+        
         elif learner_type == "obl":
             RL_learners = [learners.actor_critic(learners.softmax, learners.value_advantage,\
                        game.num_actions[p], game.num_states[p], extra_samples = 0)\
                         for p in range(num_players)]
             players = [OBL(RL_learners[p], p, fict_game) for p in range(num_players)]
+        
+        # initialize learners/players
         elif learner_type == "ot_rl":
             RL_learners = [[learners.actor_critic(learners.softmax, learners.value_advantage,\
                        game.num_actions[p], game.num_states[p], extra_samples = 0)\
@@ -43,6 +46,7 @@ def run(options, games_per_lvl=100000, exploit_freq= 1):
             players = [OT_RL(RL_learners[p], p, fict_game) for p in range(num_players)]
         fixed_players = [fixed_pol(players[p].opt_pol) for p in range(num_players)]
         
+        # irene: what's difference between fixed policy and OT_RL?
         for p in range(num_players):
             curr_player = players.pop(p)
             fixed_curr = fixed_players.pop(p)
@@ -63,6 +67,7 @@ def run(options, games_per_lvl=100000, exploit_freq= 1):
         times = []
         tic = time.perf_counter()
         for lvl in range(num_lvls):
+            print (lvl)
             log.info("Level: " + str(lvl))
             pols = []
             bels = []
@@ -122,6 +127,7 @@ def run(options, games_per_lvl=100000, exploit_freq= 1):
         
         #pol_hist = pol_hist[-5:]
         #belief_hist = belief_hist[-5:]
+        # calculuate exploitability
         if learner_type == 'ot_rl':
             pol_hist = []
             avg_pols = []
@@ -138,6 +144,7 @@ def run(options, games_per_lvl=100000, exploit_freq= 1):
                     pol_hist.append(pols)
                     exploit, _, _, _ = calc_exploitability(pols, game, exploit_learner)
                 exploitability.append(exploit)
+                print (exploitability)
         else:
             if averaged_pol:
                 new_avg_pols = []

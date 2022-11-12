@@ -21,7 +21,7 @@ def main():
             all_res = p.map(OBL.run, [options for i in range(NUM_LOOPS)])
         #plot_everything(pol_plot, bel_plot, "kuhn", reward_hist[-1], exploitability)
         log.info("Saving results...")
-        filename="results/" + options["game_name"] +  "_" + options["learner_type"] + "_"+str(NUM_LOOPS)+"_loops"
+        filename="results/" + options["game_name"] +  "_" + options["learner_type"] + "_loops"+str(NUM_LOOPS)
         np.savez(filename, res=all_res)
         #np.savez(filename, pols=pol_plot, bels=bel_plot, exploit=exploitability, rewards=reward_hist, times=times)
         log.info("Completed")
@@ -30,7 +30,7 @@ def main():
         with Pool(NUM_LOOPS) as p:
             all_res = p.map(FSP.run, [options for i in range(NUM_LOOPS)])
         log.info("Saving results...")
-        filename="results/FSP_" + options["game_name"] +  "_"+str(NUM_LOOPS)+"_loops"
+        filename="results/" + options["game_name"] +  "_FSP" + "_loops"+str(NUM_LOOPS)
         np.savez(filename, res=all_res)
         #np.savez(filename, pols=pol_plot, bels=bel_plot, exploit=exploitability, rewards=reward_hist, times=times)
         log.info("Completed")

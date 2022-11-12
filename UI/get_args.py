@@ -1,3 +1,4 @@
+from games.bridge_kuhn import *
 from games.kuhn import *
 from games.leduc import *
 import agents.learners as learners
@@ -30,6 +31,13 @@ def run():
                     game = Kuhn_Poker_int_io()
                     fict_game = Fict_Kuhn_int()
                     exploit_learner = learners.kuhn_exact_solver()
+                elif game_name == "bridge_kuhn":
+                    bridge_len = 4
+                    if '--bridge_len' in sys.argv:
+                        bridge_len = sys.argv.index('--bridge_len')
+                    game = Bridge_Kuhn_Poker_int_io(_bridge_len=bridge_len)
+                    fict_game = Fict_Bridge_Kuhn_int(_bridge_len=bridge_len)
+                    exploit_learner = learners.bridge_kuhn_exact_solver(bridge_len)
                 elif game_name == "leduc":
                     game = leduc_int()
                     fict_game = leduc_fict()
