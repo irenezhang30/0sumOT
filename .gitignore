@@ -2,6 +2,7 @@ old_paper.pdf
 output/
 input/
 results/
+test_notebooks/
 __pycache__/
 */__pycache__/
 *.pkl

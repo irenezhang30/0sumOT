@@ -17,8 +17,11 @@ NUM_LOOPS=1 # Change this to run multiple seeds (in parallel)
 def main():
     options = get_args.run() 
     if options["mode"] == "obl":
-        with Pool(NUM_LOOPS) as p:
-            all_res = p.map(OBL.run, [options for i in range(NUM_LOOPS)])
+        # with Pool(NUM_LOOPS) as p:
+        #     args = [options for _ in range(NUM_LOOPS)]
+        #     all_res = p.map(OBL.run, args)
+        all_res = OBL.run(options)
+
         #plot_everything(pol_plot, bel_plot, "kuhn", reward_hist[-1], exploitability)
         log.info("Saving results...")
         filename="results/" + options["game_name"] +  "_" + options["learner_type"] + "_loops"+str(NUM_LOOPS)

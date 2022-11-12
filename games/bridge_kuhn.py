@@ -36,11 +36,12 @@ class Bridge_Kuhn_Poker(base):
         self.bridge_len = _bridge_len
         self.max_turn_number = 2 * (self.bridge_len - 1) + 4
 
-        # kuhn states (0,1,2,3,4,5), bridge positions (6-)
-        self.num_states = [(self.num_players+1)*(2**(self.num_players-1)) + self.bridge_len for _ in range(self.num_players)]
+        # kuhn states (0,1,2,3,4,5), bridge positions (6-), waiting state (-1)
+        self.num_states = [(self.num_players+1)*(2**(self.num_players-1)) + self.bridge_len + 1 for _ in range(self.num_players)]
         self.num_actions = [2+3 for _ in range(self.num_players)] # 0 = bet, 1 = check, 2 = left, 3 = right, 4 = jump
 
     def start_game(self):
+        print("game started")
         """Start bridge phase."""
         self.curr_player = 0
         self.rewards = [0 for _ in range(self.num_players)]
@@ -93,10 +94,14 @@ class Bridge_Kuhn_Poker(base):
                 - List[int]: Current player's observation: Amount which each player has betted
                 - int: Reward, which is zero if episode has not ended
         """
-        print ("curr_player: ", self.curr_player)
+        # print ("curr_player: ", self.curr_player)
         if not self.ended:
             if self.crossed_bridge():
-                return self.cards[self.curr_player], self.curr_bets, 0
+                # if crossed bridge but not done turn
+                if 0 in self.cards:
+                    return 3 + self.bridge_len + 1, self.curr_bets, 0
+                else:
+                    return self.cards[self.curr_player], self.curr_bets, 0
             else:
                 return 4 + self.bridge_pos[self.curr_player], self.curr_bets, 0
         else:
@@ -115,40 +120,45 @@ class Bridge_Kuhn_Poker(base):
         # print(f"executing action {act} for player {self.curr_player}, round finished: {self.finished_round()}",)
         self.turn_number += 1
         if self.crossed_bridge():
-            if act=="bet":
-                self.prev_action[self.curr_player] = -1 # legal action
-                self.curr_bets[self.curr_player] += 1
-                self.betted[self.curr_player] = True
-            elif act=="check":
-                self.prev_action[self.curr_player] = -1 # legal action
-                if any(self.betted):
+            # awkward state
+            if 0 in self.cards:
+                assert self.prev_action[1-self.curr_player] == 3, "to be in awkward state, last player's action must be right"
+                self.prev_action[self.curr_player] = 3
+                if self.turn_number >= self.max_turn_number:
+                    self.start_kuhn()
+            else:
+                if act=="bet":
+                    self.prev_action[self.curr_player] = -1 # legal action
+                    self.curr_bets[self.curr_player] += 1
+                    self.betted[self.curr_player] = True
+                elif act=="check":
+                    self.prev_action[self.curr_player] = -1 # legal action
+                    if any(self.betted):
+                        self.folded[self.curr_player] = True
+                    else:
+                        self.checked[self.curr_player] = True
+                elif act=="fold":
+                    self.prev_action[self.curr_player] = -1 # legal action
                     self.folded[self.curr_player] = True
+                # choosing left, right, jump will end game
                 else:
-                    self.checked[self.curr_player] = True
-            elif act=="fold":
-                self.prev_action[self.curr_player] = -1 # legal action
-                self.folded[self.curr_player] = True
-            # choosing left, right, jump will end game
-            else:
-                self.prev_action[self.curr_player] = 4
+                    self.prev_action[self.curr_player] = 4
 
-            # calculate reward when round finishes due to illegal action
-            if 4 in self.prev_action and self.finished_round():
-                if self.prev_action[0] == self.prev_action[1]:
-                    pass
+                # calculate reward when round finishes due to illegal action
+                if 4 in self.prev_action and self.finished_round():
+                    if self.prev_action[0] == self.prev_action[1]:
+                        pass
+                    else:
+                        loser = np.argmax(self.prev_action)
+                        self.rewards[loser] -= 10
+                        self.rewards[1-loser] += 10
+                    self.end_game()
                 else:
-                    looser = np.argmax(self.prev_action)
-                    self.rewards[looser] -= 10
-                    self.rewards[1-looser] += 10
-                self.end_game()
-            else:
-                if all(self.checked):
-                    self.prev_action[self.curr_player] = -1 # legal action
-                    self.end_game()
+                    if all(self.checked):
+                        self.end_game()
 
-                elif all(p[0] or p[1] for p in zip(self.betted, self.folded)):
-                    self.prev_action[self.curr_player] = -1 # legal action
-                    self.end_game()
+                    elif all(p[0] or p[1] for p in zip(self.betted, self.folded)):
+                        self.end_game()
 
         # update positions
         else:
@@ -156,12 +166,15 @@ class Bridge_Kuhn_Poker(base):
             if act == "left":
                 self.prev_action[self.curr_player] = 2
                 self.bridge_pos[self.curr_player] = max(curr_position - 1, 0)
+                print(self.prev_action, self.finished_round(), self.turn_number)
             elif act == "right":
                 self.prev_action[self.curr_player] = 3
                 self.bridge_pos[self.curr_player] = min(curr_position + 1, self.bridge_len - 1)
+                print(self.prev_action, self.finished_round(), self.turn_number)
             # jumps/illegal action, so end game
             else:
                 self.prev_action[self.curr_player] = 4
+                print(self.prev_action, self.finished_round(), self.turn_number)
 
             # calculate reward when round finsihes
             if self.finished_round():
@@ -173,38 +186,39 @@ class Bridge_Kuhn_Poker(base):
 
                 # only one plays illegal/jump
                 elif 4 in self.prev_action:
-                    looser = np.argmax(self.prev_action)
-                    self.rewards[looser] -= 10
-                    self.rewards[1-looser] += 10
+                    try:
+                        loser = np.argmax(self.prev_action)
+                    except:
+                        import pdb;pdb.set_trace()
+                    self.rewards[loser] -= 10
+                    self.rewards[1-loser] += 10
                     self.end_game()
                 # left right, or right left
                 else:
-                    looser = np.argmin(self.prev_action)
-                    self.rewards[looser] -= 1
-                    self.rewards[1-looser] += 1
+                    try:
+                        loser = np.argmin(self.prev_action)
+                    except:
+                        import pdb;pdb.set_trace()
+                    self.rewards[loser] -= 1
+                    self.rewards[1-loser] += 1
                 # We only move on from bridge crossing when round ends because the reward calculation from bridge crossing needs to happen at end of round
-                if not self.ended and self.crossed_bridge():
+                
+                if not self.ended and self.crossed_bridge() and self.turn_number >= self.max_turn_number:
                     self.start_kuhn()
-        self.curr_player = (self.curr_player + 1)%self.num_players
 
-        # if game haven't ended, we force it
-        # For now, don't penalize/award agents for trying to cross the bridge
+        # if game haven't ended after max turn number passed, we force it to end
         assert sum(self.rewards)==0, "something wrong with game implementation, should be zero sum game"
         if self.turn_number >= self.max_turn_number and not self.ended:
-            # if self.bridge_pos[0] == self.bridge_pos[1]:
-            #     pass
-            # else:
-            #     looser = np.argmin(self.bridge_pos)
-            #     self.rewards[looser] -= 100
-            #     self.rewards[1-looser] += 100
             self.end_game()
+        
+        self.curr_player = (self.curr_player + 1) % self.num_players
 
 
     def end_game(self) -> None:
         """Calculate and update player rewards if in card playing phase (added with rewards from bridge crossing)"""
-        
+        print("Game ended \n")
         self.ended = True
-        if self.crossed_bridge():
+        if self.crossed_bridge() and 0 not in self.cards:
             if any(self.betted):
                 bets = True
             else:
@@ -224,14 +238,15 @@ class Bridge_Kuhn_Poker(base):
                 card_rewards[self.winner] += winnings
                 self.rewards = list(np.array(card_rewards) + np.array(self.rewards))
      
-        self.prev_action = [None for _ in range(self.num_players)]
-        assert sum(self.rewards)==0, "something wrong with game implementation, should be zero sum game"
+        assert sum(self.rewards) == 0, "something wrong with game implementation, should be zero sum game"
+        self.start_game()
+        # self.start_game()
 
 class Bridge_Kuhn_Poker_int_io(Bridge_Kuhn_Poker):
     def __init__(self, _bridge_len=4):
         super().__init__(_bridge_len=_bridge_len)
         self.poss_pots = list(product([1,2],repeat=self.num_players-1))
-        self.max_card_idx = len(self.poss_pots) * (self.num_players + 1) + (self.num_players + 1)
+        self.max_card_idx = (len(self.poss_pots)-1) * (self.num_players + 1) + (self.num_players + 1)
 
     def observe(self) -> Tuple[int, int]:
         """Returns observation and reward
@@ -251,10 +266,14 @@ class Bridge_Kuhn_Poker_int_io(Bridge_Kuhn_Poker):
                 pot.pop(self.curr_player)
                 pot_ind = self.poss_pots.index(tuple(pot))
                 return pot_ind * (self.num_players + 1) + card-1, reward
-            else:
+
+            elif state > 3 and state < self.num_states[0] - 1: # check not in awkward state
                 bridge_pos = state - 4
                 bridge_pos += self.max_card_idx
                 return bridge_pos, reward
+            else:
+                assert state == 3 + self.bridge_len + 1, f"awkward state: {state}"
+                return self.num_states[0] - 1, reward
         else:
             return -1, reward
 
@@ -266,25 +285,32 @@ class Bridge_Kuhn_Poker_int_io(Bridge_Kuhn_Poker):
             - Somehow call and fold is absorbed.
         """
         if act == 0:
+            print (f"Player{self.curr_player} executing bet")
             super().action("bet")
         elif act == 1:
+            print (f"Player{self.curr_player} executing check")
             super().action("check")
         elif act == 2:
+            print (f"Player{self.curr_player} executing left")
             super().action("left")
         elif act == 3:
+            print (f"Player{self.curr_player} executing right")
             super().action("right")
         else:
+            print (f"Player{self.curr_player} executing jump")
             super().action("jump")
+
 
 class Fict_Bridge_Kuhn_int(Bridge_Kuhn_Poker_int_io):
 
     def __init__(self, _bridge_len=4):
         """self.poss_hidden: List[Tuple[int]] the possible oppponent's card or their position
-        [(1,), (2,), (3,), # first 3 is opponent's cards (1-3)
-        (4,), ... ,(13,)] # Then its the opponent's possible bridge positions, off by 4
+        [(1,), (2,), (3,), # First 3 is opponent's cards (1-3)
+        (4,), ... , (7),   # Then its the opponent's possible bridge positions, off by 4
+        (8) ]              #  Awkward state
         """
         super().__init__(_bridge_len=_bridge_len)
-        self.poss_hidden = [tuple(i,) for i in range(3 + self.bridge_len)]
+        self.poss_hidden = [(i,) for i in range(1, 3 + self.bridge_len + 1 + 1)]
 
     def set_state(self, p_state: int, hidden_state: int, p_id: int) -> int:
         """Set state
@@ -301,20 +327,33 @@ class Fict_Bridge_Kuhn_int(Bridge_Kuhn_Poker_int_io):
         Returns:
             int: return 0 if legal, -1 illegal
         """
-
         self.ended = False
         self.curr_player = p_id
+        
+        if p_state >= self.max_card_idx and hidden_state < 3:
+            return -1
+        if p_state < self.max_card_idx and hidden_state >= 3:
+            return -1
+        # if they are in awkward state, they must be in awkward state together
+        if p_state == self.num_states[0] - 1 and hidden_state != len(self.poss_hidden) -1:
+            return -1
+        if p_state != self.num_states[0] - 1 and hidden_state == len(self.poss_hidden) -1:
+            return -1
 
         if p_state >=self.max_card_idx:
             # opponent must not have started kuhn game
             if hidden_state < 3:
                 return -1 # should not distribute cards yet
 
-            opponent_bridge_pos = self.poss_hidden[hidden_state][0] - 4 # -4 instead of -3 because cards starts at 1 not 0
-            player_bridge_pos = p_state - self.max_card_idx
-            assert opponent_bridge_pos >= 0 and player_bridge_pos >= 0, "illegal position"
-            self.bridge_pos[p_id] = player_bridge_pos
-            self.bridge_pos[1 - p_id] = opponent_bridge_pos
+            # in awkward state
+            if p_state == self.num_states[0] - 1:
+                self.bridge_pos = [self.bridge_len -1 for i in self.players]
+            else:
+                opponent_bridge_pos = self.poss_hidden[hidden_state][0] - 4 # -4 instead of -3 because cards starts at 1 not 0
+                player_bridge_pos = p_state - self.max_card_idx
+                assert opponent_bridge_pos >= 0 and player_bridge_pos >= 0, "illegal position"
+                self.bridge_pos[p_id] = player_bridge_pos
+                self.bridge_pos[1 - p_id] = opponent_bridge_pos
 
             self.cards = [0, 0]
             self.curr_bets = [1 for _ in range(self.num_players)]
@@ -364,13 +403,20 @@ class Fict_Bridge_Kuhn_int(Bridge_Kuhn_Poker_int_io):
         Returns:
             int: index in poss_hidden, one of either
             - The first 3 index is opponent's card,
-            - Then opponent's card position
+            - Then opponent's bridge position
         """
-        if self.crossed_bridge():
+        if not self.crossed_bridge():
             opponent_bridge_pos = self.bridge_pos[1-p_id]
-            hidden_state = opponent_bridge_pos + 4
+            hidden_state = opponent_bridge_pos + 3
         else:
-            curr_cards = self.cards.copy()
-            curr_cards.pop(p_id) # the remaining left is opponent's card
-            hidden_state = self.poss_hidden.index(tuple(curr_cards))
+            # awkward state
+            if 0 in self.cards:
+                hidden_state = len(self.poss_hidden) - 1
+            else:
+                curr_cards = self.cards.copy()
+                curr_cards.pop(p_id) # the remaining left is opponent's card
+                assert curr_cards[0]!=0, f"card cannot be 0, player: {p_id}, bridge_pos: {self.bridge_pos}, cards:{self.cards}, crossed_bridge:{self.crossed_bridge()}"
+                hidden_state = self.poss_hidden.index(tuple(curr_cards))
+
+        assert hidden_state < len(self.poss_hidden), f"hidden state {hidden_state} is out of bound, max index is {len(self.poss_hidden)-1}\nplayer: {p_id}, bridge_pos: {self.bridge_pos}, cards:{self.cards} "
         return hidden_state

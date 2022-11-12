@@ -1,6 +1,6 @@
-from games.bridge_kuhn import *
-from games.kuhn import *
-from games.leduc import *
+from games.bridge_kuhn import Bridge_Kuhn_Poker_int_io, Fict_Bridge_Kuhn_int
+from games.kuhn import Kuhn_Poker_int_io, Fict_Kuhn_int
+from games.leduc import leduc_int, leduc_fict
 import agents.learners as learners
 import sys
 import time
@@ -42,7 +42,7 @@ def run():
                     game = leduc_int()
                     fict_game = leduc_fict()
                     exploit_learner = learners.actor_critic(learners.softmax, learners.value_advantage, \
-                                            game.num_actions[0], game.num_states[0], tol=9999) 
+                                            game.num_actions[0], game.num_states[0], tol=9999)
                 else:
                     print("Please enter a game choice")
                     return -1

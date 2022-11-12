@@ -21,7 +21,6 @@ def run(options, games_per_lvl=100000, exploit_freq= 1):
         learn_with_avg = options["learn_w_avg"]
         learner_type = options["learner_type"]
         
-        
         num_players = 2
         
         if learner_type == "rl":
@@ -109,7 +108,7 @@ def run(options, games_per_lvl=100000, exploit_freq= 1):
                             p.other_players[other_p_id].opt_pol = other_pol
             for p in players:
                 p.reset()
-            play_to_convergence(players, game, tol=1e-7) 
+            play_to_convergence(players, game, tol=1e-7)
             times.append(time.perf_counter()-tic)
         pols = []
         bels = []

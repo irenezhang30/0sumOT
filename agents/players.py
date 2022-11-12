@@ -145,6 +145,7 @@ class OBL(RL):
                     belief_state = np.argmax(
                         np.random.multinomial(1, pvals=belief_probs)
                     )
+                    print(f"setting the state for player {self.id}")
                     res = self.fict_game.set_state(self.state, belief_state, self.id)
                     if res == -1:
                         false_prob = belief_probs[belief_state]
@@ -261,6 +262,8 @@ class OT_RL(RL):
 
     def observe(self, observation, fict=False):
         self.state = observation[0]
+        if self.state > 10:
+            import pdb;pdb.set_trace()
         self.r = observation[1]
         if not fict:
             if self.state != -1:
@@ -272,6 +275,7 @@ class OT_RL(RL):
                         belief_state = np.argmax(
                             np.random.multinomial(1, pvals=belief_probs)
                         )
+                        print(f"setting the state for player {self.id}")
                         res = self.fict_game.set_state(
                             self.state, belief_state, self.id
                         )
@@ -323,7 +327,7 @@ class OT_RL(RL):
     def add_to_mem(self):
         """
         Add episodes to dataset for learning belief and policy averaging
-        (TODO: does not use OT-BL?)
+        (TODO: Why do we not use OT-BL?)
         """    
         for i in range(self.belief_iters):
             self.fict_game.start_game()
