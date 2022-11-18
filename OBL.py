@@ -45,7 +45,7 @@ def run(options, games_per_lvl=100000, exploit_freq= 1):
             players = [OT_RL(RL_learners[p], p, fict_game) for p in range(num_players)]
         fixed_players = [fixed_pol(players[p].opt_pol) for p in range(num_players)]
         
-        # irene: what's difference between fixed policy and OT_RL?
+
         for p in range(num_players):
             curr_player = players.pop(p)
             fixed_curr = fixed_players.pop(p)
@@ -66,7 +66,7 @@ def run(options, games_per_lvl=100000, exploit_freq= 1):
         times = []
         tic = time.perf_counter()
         for lvl in range(num_lvls):
-            print (lvl)
+            print (f"level: {lvl}")
             log.info("Level: " + str(lvl))
             pols = []
             bels = []
@@ -108,6 +108,7 @@ def run(options, games_per_lvl=100000, exploit_freq= 1):
                             p.other_players[other_p_id].opt_pol = other_pol
             for p in players:
                 p.reset()
+            assert not game.fict, "should be actual game"
             play_to_convergence(players, game, tol=1e-7)
             times.append(time.perf_counter()-tic)
         pols = []

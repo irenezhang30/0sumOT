@@ -9,6 +9,7 @@ log = logging.getLogger(__name__)
 
 
 def run():
+    bridge_len = 0
     if len(sys.argv) > 1:
         if '--lvls' in sys.argv:
             level_ind = sys.argv.index('--lvls')
@@ -96,6 +97,7 @@ def run():
             "avg_pol":averaged_pol,
             "learn_w_avg":learn_with_avg,
             "learner_type":learner_type,
-            "mode":mode
+            "mode":mode,
+            "bridge_len": bridge_len
             }
     return opts 

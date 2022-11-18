@@ -113,12 +113,21 @@ class FSP:
         Play through the chosen game using the strategies provided in strat,
         returns an experience buffer for both players, consisting of s,a,r,s' tuples
         """
+        try:
+            a = self.game.bridge_len
+            bridge_kuhn = True
+        except:
+            bridge_kuhn = False
+        print ("============", bridge_kuhn)
         buffer = [[] for i in range(self.num_players)]
         self.game.start_game()
         while not self.game.ended:
             curr_p = self.game.curr_player
             curr_p_strat = strat[curr_p]
-            obs, r = self.game.observe()
+            if bridge_kuhn:
+                obs, r, _ = self.game.observe()
+            else:
+                obs, r = self.game.observe()
             probs = curr_p_strat[obs,:]
             action = np.argmax(np.random.multinomial(1, pvals= probs))
             self.game.action(action)
@@ -128,7 +137,10 @@ class FSP:
          
         for i in range(self.num_players):
             player = self.game.curr_player
-            _, r = self.game.observe()
+            if bridge_kuhn:
+                _, r, _ = self.game.observe()
+            else:
+                _, r = self.game.observe()
             self.game.action(None)
             #import pdb; pdb.set_trace()
             if len(buffer[player]) > 0:

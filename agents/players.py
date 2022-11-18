@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.special import softmax
 import random
 
 
@@ -114,7 +115,10 @@ class fixed_pol(player):
 
     def action(self):
         probs = self.opt_pol[self.state, :]
-        act = np.argmax(np.random.multinomial(1, pvals=probs))
+        try:
+            act = np.argmax(np.random.multinomial(1, pvals=probs))
+        except:
+            import pdb;pdb.set_trace()
         return act
 
 
@@ -136,6 +140,8 @@ class OBL(RL):
     def observe(self, observation, fict=False):
         self.state = observation[0]
         self.r = observation[1]
+        turn_number = observation[2]
+
         if not fict:
             if self.state != -1:
                 belief_probs = self.belief[self.state, :]
@@ -146,7 +152,7 @@ class OBL(RL):
                         np.random.multinomial(1, pvals=belief_probs)
                     )
                     print(f"setting the state for player {self.id}")
-                    res = self.fict_game.set_state(self.state, belief_state, self.id)
+                    res = self.fict_game.set_state(self.state, belief_state, self.id, turn_number)
                     if res == -1:
                         false_prob = belief_probs[belief_state]
                         belief_probs[:] += false_prob / (belief_probs.size - 1)
@@ -265,20 +271,27 @@ class OT_RL(RL):
         if self.state > 10:
             import pdb;pdb.set_trace()
         self.r = observation[1]
-        if not fict:
+        turn_number = observation[2]
+        if not fict: 
             if self.state != -1:
                 for lvl in range(max(self.curr_lvl - self.ot_lvls, 0), self.curr_lvl):
-                    belief_probs = self.beliefs[lvl][self.state, :]
+                    # belief_probs = self.beliefs[lvl][self.state, :]
                     # Here we do OBL
                     res = -1
                     while res != 0:
+                        belief_probs = self.beliefs[lvl][self.state, :]
                         belief_state = np.argmax(
                             np.random.multinomial(1, pvals=belief_probs)
                         )
-                        print(f"setting the state for player {self.id}")
+                        print(f"setting the state for player {self.id} in fict game {self.fict_game.game_id}, state: {self.state}, hidden: {belief_state} i.e. {self.fict_game.poss_hidden[belief_state]}")
                         res = self.fict_game.set_state(
-                            self.state, belief_state, self.id
+                            self.state, belief_state, self.id, turn_number
                         )
+                        if res == -1:
+                            false_prob = belief_probs[belief_state]
+                            belief_probs[:] += false_prob / (belief_probs.size - 1)
+                            belief_probs[belief_state] = 0
+                            print (f"P{self.id} setting state {self.state}, hidden {self.fict_game.poss_hidden[belief_state]} failed")
                         # if res == -1:
                         # false_prob = belief_probs[belief_state]
                         # belief_probs[:] += false_prob/(belief_probs.size-1)
@@ -289,6 +302,7 @@ class OT_RL(RL):
 
                     self.fict_game.action(act)
                     while self.fict_game.curr_player != self.id:
+                        print (f"fict game player: {self.fict_game.curr_player}, current game player: {self.id}")
                         curr_player = self.other_players[self.fict_game.curr_player]
                         other_p_obs = self.fict_game.observe()
                         curr_player.observe(other_p_obs, fict=True)
@@ -298,6 +312,7 @@ class OT_RL(RL):
                             opp_lvl = 0
                         other_p_act = curr_player.action(opp_lvl)
                         self.fict_game.action(other_p_act)
+
                     next_obs = self.fict_game.observe()
                     s_prime = next_obs[0]
                     r = next_obs[1]
@@ -330,6 +345,7 @@ class OT_RL(RL):
         (TODO: Why do we not use OT-BL?)
         """    
         for i in range(self.belief_iters):
+            print ("add_to_mem")
             self.fict_game.start_game()
             lvl = np.random.randint(self.curr_lvl)
             while not self.fict_game.ended:

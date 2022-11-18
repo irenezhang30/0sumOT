@@ -8,8 +8,14 @@ def play_game(players, game):
     Play chosen game until the end.
     """
     game.start_game()
+    try:
+        print (f"\n\n play_game started, game id: {game.game_id}, fict id: {players[0].fict_game.game_id}, {players[1].fict_game.game_id}")
+    except:
+        pass
     while not game.ended:
         player = players[game.curr_player]
+        # import pdb;pdb.set_trace()
+        print ("====================")
         player.observe(game.observe())
         game.action(player.action())
     for i in players:
@@ -59,6 +65,10 @@ def calc_exploitability(pol, game, learner, num_iters=100000, num_exploit_iters 
         new_pols.append(learner.calc_opt(pol[1],1))
         reward_hist = None
         V_1 = None
+    elif isinstance(learner, learners.bridge_kuhn_exact_solver):
+        new_pols.append(learner.calc_opt(pol[1],1))
+        reward_hist = None
+        V_1 = None
     else:
         players = [RL(learner,0), fixed_pol(pol[1])]
         
@@ -98,7 +108,7 @@ def calc_exploitability(pol, game, learner, num_iters=100000, num_exploit_iters 
 
     p_avg_exploitability[0] = sum(exploit_rewards[0])/len(exploit_rewards[0])
     
-    if isinstance(learner, learners.kuhn_exact_solver):
+    if isinstance(learner, learners.kuhn_exact_solver) or isinstance(learner, learners.bridge_kuhn_exact_solver):
         new_pols.append(learner.calc_opt(pol[0],2))
         V_2 = None
     else:

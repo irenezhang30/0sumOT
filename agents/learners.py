@@ -434,9 +434,11 @@ class bridge_kuhn_exact_solver:
         self.bridge_len = bridge_len
 
     def calc_opt(self, opp_pol, p_id):
-        opt_pol = np.zeros((6+self.bridge_len,2))
-        for state in range(6,6+self.bridge_len):
-            opt_pol[state,1] = 3 # always go right
+        from games.bridge_kuhn import Bridge_Kuhn_Poker_int_io
+        game = Bridge_Kuhn_Poker_int_io()
+        opt_pol = np.zeros((game.num_states[0], game.num_actions[0]))
+        for state in range(game.max_card_idx,game.num_states[0]):
+            opt_pol[state,3] = 1 # always go right
         if p_id == 1:
             opt_pol[3,1] = 1 # always fold with a 1 if raised
             opt_pol[5,0] = 1 # always call with a 3 if raised

@@ -82,6 +82,7 @@ class Kuhn_Poker_int_io(Kuhn_Poker):
         if card != -1:
             pot = game_pot.copy()
             pot.pop(self.curr_player)
+            import pdb;pdb.set_trace()
             pot_ind = self.poss_pots.index(tuple(pot))
             return pot_ind*(self.num_players+1)+card-1, reward
         else:
