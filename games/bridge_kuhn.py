@@ -60,7 +60,7 @@ class Bridge_Kuhn_Poker(base):
     def crossed_bridge(self) -> bool:
         """
         Returns:
-            bool: True if all players successfully corssed the bridge
+            bool: True if all players successfully crossed the bridge
         """
         return all([player_pos == self.bridge_len - 1 for player_pos in self.bridge_pos])
 
@@ -138,10 +138,11 @@ class Bridge_Kuhn_Poker(base):
         if self.crossed_bridge():
             # waiting state
             if sum(self.cards) == 0:
-                try:
-                    assert not self.ended or self.prev_action[1-self.curr_player] == 3, "to be in waiting state, last player's action must be right"
-                except: 
-                    import pdb;pdb.set_trace()
+                # TODO: see if we cam really take this off
+                # try:
+                #     assert not self.ended or self.prev_action[1-self.curr_player] == 3, "to be in waiting state, last player's action must be right"
+                # except: 
+                #     import pdb;pdb.set_trace()
                 self.prev_action[self.curr_player] = 3
                 if self.turn_number < self.max_turn_number and self.finished_round():
                     self.start_kuhn()
@@ -334,7 +335,7 @@ class Fict_Bridge_Kuhn_int(Bridge_Kuhn_Poker_int_io):
         (0, 3),  ....,
         (0, 4),  ....,                      (4, 4),
         (0, None)]
-        Then its opponent's possible bridge positions (waiting state included), and last position
+        Then its opponent's possible bridge positions (waiting state included), and last action
         """
         super().__init__(_bridge_len=_bridge_len)
 

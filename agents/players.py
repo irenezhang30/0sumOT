@@ -279,6 +279,7 @@ class OT_RL(RL):
                     # Here we do OBL
                     res = -1
                     while res != 0:
+                        self.belief = np.array(self.belief)
                         belief_probs = self.beliefs[lvl][self.state, :]
                         belief_state = np.argmax(
                             np.random.multinomial(1, pvals=belief_probs)
@@ -289,9 +290,18 @@ class OT_RL(RL):
                         )
                         if res == -1:
                             false_prob = belief_probs[belief_state]
-                            belief_probs[:] += false_prob / (belief_probs.size - 1)
-                            belief_probs[belief_state] = 0
+                            # belief_probs[:] += false_prob / (belief_probs.size - 1)
+                            # belief_probs[belief_state] = 0
+
+                            # TODO: something wrong here
+                            nonzero_belief = belief_probs > 0
+                            num_nonzero_belief = sum(nonzero_belief)
+                            self.beliefs[lvl][self.state, :][:] += false_prob * num_nonzero_belief / (num_nonzero_belief - 1)
+                            self.beliefs[lvl][self.state][belief_state] = 0
                             print (f"P{self.id} setting state {self.state}, hidden {self.fict_game.poss_hidden[belief_state]} failed")
+                            if self.state == 8:
+                                import pdb;pdb.set_trace()
+                            
                         # if res == -1:
                         # false_prob = belief_probs[belief_state]
                         # belief_probs[:] += false_prob/(belief_probs.size-1)

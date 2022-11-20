@@ -35,7 +35,8 @@ def run():
                 elif game_name == "bridge_kuhn":
                     bridge_len = 4
                     if '--bridge_len' in sys.argv:
-                        bridge_len = sys.argv.index('--bridge_len')
+                        bridge_len_idx = sys.argv.index('--bridge_len')
+                        bridge_len = int(sys.argv[bridge_len_idx+1])
                     game = Bridge_Kuhn_Poker_int_io(_bridge_len=bridge_len)
                     fict_game = Fict_Bridge_Kuhn_int(_bridge_len=bridge_len)
                     exploit_learner = learners.bridge_kuhn_exact_solver(bridge_len)
