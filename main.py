@@ -24,7 +24,7 @@ def main():
 
         #plot_everything(pol_plot, bel_plot, "kuhn", reward_hist[-1], exploitability)
         log.info("Saving results...")
-        filename = "results/" + options["game_name"] +  "_" + options["learner_type"] + "_lvls" + options["num_lvls"] + "_bridge" + options["bridge_len"] + "_loops"+str(NUM_LOOPS)
+        filename = "results/" + options["game_name"] +  "_" + options["learner_type"] + "_lvls" + str(options["num_lvls"]) + "_bridge" + str(options["bridge_len"]) + "_loops"+str(NUM_LOOPS)
         np.savez(filename, res=all_res)
         #np.savez(filename, pols=pol_plot, bels=bel_plot, exploit=exploitability, rewards=reward_hist, times=times)
         log.info("Completed")

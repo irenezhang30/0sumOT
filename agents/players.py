@@ -141,6 +141,7 @@ class OBL(RL):
         self.state = observation[0]
         self.r = observation[1]
         turn_number = observation[2]
+        prev_action = observation[3]
 
         if not fict:
             if self.state != -1:
@@ -152,7 +153,7 @@ class OBL(RL):
                         np.random.multinomial(1, pvals=belief_probs)
                     )
                     print(f"setting the state for player {self.id}")
-                    res = self.fict_game.set_state(self.state, belief_state, self.id, turn_number)
+                    res = self.fict_game.set_state(self.state, belief_state, self.id, turn_number, prev_action)
                     if res == -1:
                         false_prob = belief_probs[belief_state]
                         belief_probs[:] += false_prob / (belief_probs.size - 1)
@@ -268,10 +269,9 @@ class OT_RL(RL):
 
     def observe(self, observation, fict=False):
         self.state = observation[0]
-        if self.state > 10:
-            import pdb;pdb.set_trace()
         self.r = observation[1]
         turn_number = observation[2]
+        prev_action = observation[3]
         if not fict: 
             if self.state != -1:
                 for lvl in range(max(self.curr_lvl - self.ot_lvls, 0), self.curr_lvl):
@@ -286,29 +286,12 @@ class OT_RL(RL):
                         )
                         print(f"setting the state for player {self.id} in fict game {self.fict_game.game_id}, state: {self.state}, hidden: {belief_state} i.e. {self.fict_game.poss_hidden[belief_state]}")
                         res = self.fict_game.set_state(
-                            self.state, belief_state, self.id, turn_number
+                            self.state, belief_state, self.id, turn_number, prev_action
                         )
-                        if res == -1:
-                            false_prob = belief_probs[belief_state]
-                            # belief_probs[:] += false_prob / (belief_probs.size - 1)
-                            # belief_probs[belief_state] = 0
-
-                            # TODO: something wrong here
-                            nonzero_belief = belief_probs > 0
-                            num_nonzero_belief = sum(nonzero_belief)
-                            self.beliefs[lvl][self.state, :][:] += false_prob * num_nonzero_belief / (num_nonzero_belief - 1)
-                            self.beliefs[lvl][self.state][belief_state] = 0
-                            print (f"P{self.id} setting state {self.state}, hidden {self.fict_game.poss_hidden[belief_state]} failed")
-                            if self.state == 8:
-                                import pdb;pdb.set_trace()
-                            
+                        # TODO: cross out belief here
                         # if res == -1:
-                        # false_prob = belief_probs[belief_state]
-                        # belief_probs[:] += false_prob/(belief_probs.size-1)
-                        # belief_probs[belief_state] = 0 # set prob to 0 if it was an impossible state
+
                     act = self.action()
-                    # if self.state == 0:
-                    #    import pdb; pdb.set_trace()
 
                     self.fict_game.action(act)
                     while self.fict_game.curr_player != self.id:

@@ -125,11 +125,11 @@ class FSP:
             curr_p = self.game.curr_player
             curr_p_strat = strat[curr_p]
             if bridge_kuhn:
-                obs, r, _ = self.game.observe()
+                obs, r, _, _ = self.game.observe()
             else:
                 obs, r = self.game.observe()
             probs = curr_p_strat[obs,:]
-            action = np.argmax(np.random.multinomial(1, pvals= probs))
+            action = np.argmax(np.random.multinomial(1, pvals=probs))
             self.game.action(action)
             buffer[curr_p].append({'s':obs,'a':action,'r':r,"s'":-1})
             if len(buffer[curr_p]) > 1:
@@ -138,7 +138,7 @@ class FSP:
         for i in range(self.num_players):
             player = self.game.curr_player
             if bridge_kuhn:
-                _, r, _ = self.game.observe()
+                _, r, _, _ = self.game.observe()
             else:
                 _, r = self.game.observe()
             self.game.action(None)

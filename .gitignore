@@ -8,4 +8,4 @@ __pycache__/
 *.pkl
 .ipynb_checkpoints/
 .vscode
-
+*.txt
