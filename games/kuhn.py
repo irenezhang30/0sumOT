@@ -15,8 +15,10 @@ class Kuhn_Poker(base):
         self.num_players = _num_players
         self.num_states = [(self.num_players+1)*(2**(self.num_players-1)) for i in  range(self.num_players)]
         self.num_actions = [2 for i in range(self.num_players)]
+        self.fict = False
 
     def start_game(self):
+        self.game_id = random.randint(0, 1000)
         self.curr_bets = [1 for i in range(self.num_players)]
         cards_available = [ i+1 for i in range(self.num_players+1)]
         random.shuffle(cards_available)
@@ -82,11 +84,10 @@ class Kuhn_Poker_int_io(Kuhn_Poker):
         if card != -1:
             pot = game_pot.copy()
             pot.pop(self.curr_player)
-            import pdb;pdb.set_trace()
             pot_ind = self.poss_pots.index(tuple(pot))
-            return pot_ind*(self.num_players+1)+card-1, reward
+            return pot_ind*(self.num_players+1)+card-1, reward, None, None
         else:
-            return -1, reward
+            return -1, reward, None, None
 
     def action(self, act):
         if act == 0:
@@ -100,9 +101,9 @@ class Fict_Kuhn_int(Kuhn_Poker_int_io):
         super().__init__()
         self.poss_hidden = list(product(list(range(1,self.num_players+2)), \
                                        repeat=self.num_players-1))
- 
+        self.fict = False
 
-    def set_state(self, p_state, hidden_state, p_id):
+    def set_state(self, p_state, hidden_state, p_id, turn_number = None, prev_actions = None):
         self.ended = False
         self.curr_player = p_id
         self.cards = list(self.poss_hidden[hidden_state])

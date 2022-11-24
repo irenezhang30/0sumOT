@@ -45,12 +45,12 @@ def run(options, games_per_lvl=100000, exploit_freq= 1):
             players = [OT_RL(RL_learners[p], p, fict_game) for p in range(num_players)]
         fixed_players = [fixed_pol(players[p].opt_pol) for p in range(num_players)]
         
-
+        # set players' opponents
         for p in range(num_players):
             curr_player = players.pop(p)
             fixed_curr = fixed_players.pop(p)
             if curr_player.belief is not None:
-                if learn_with_avg and learner_type == "obl":
+                if learn_with_avg and learner_type == "ot_rl":
                     curr_player.set_other_players(fixed_players)
                 else:
                     curr_player.set_other_players(players)
@@ -70,6 +70,8 @@ def run(options, games_per_lvl=100000, exploit_freq= 1):
             log.info("Level: " + str(lvl))
             pols = []
             bels = []
+
+            # approximate belief
             for p in players:
                 pols.append(p.opt_pol)
                 if p.belief is not None:
@@ -106,9 +108,9 @@ def run(options, games_per_lvl=100000, exploit_freq= 1):
                     for other_p_id, other_pol in enumerate(new_avg_pols):
                         if other_p_id != p_id:
                             p.other_players[other_p_id].opt_pol = other_pol
+            # ot-rl
             for p in players:
                 p.reset()
-            assert not game.fict, "should be actual game"
             play_to_convergence(players, game, tol=1e-7)
             times.append(time.perf_counter()-tic)
         pols = []
@@ -125,8 +127,6 @@ def run(options, games_per_lvl=100000, exploit_freq= 1):
         pol_hist.append(pols)
         belief_hist.append(bels)
         
-        #pol_hist = pol_hist[-5:]
-        #belief_hist = belief_hist[-5:]
         # calculuate exploitability
         if learner_type == 'ot_rl':
             pol_hist = []

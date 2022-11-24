@@ -114,11 +114,11 @@ class FSP:
         returns an experience buffer for both players, consisting of s,a,r,s' tuples
         """
         try:
-            a = self.game.bridge_len
+            _ = self.game.bridge_len
             bridge_kuhn = True
         except:
             bridge_kuhn = False
-        print ("============", bridge_kuhn)
+
         buffer = [[] for i in range(self.num_players)]
         self.game.start_game()
         while not self.game.ended:
@@ -127,7 +127,7 @@ class FSP:
             if bridge_kuhn:
                 obs, r, _, _ = self.game.observe()
             else:
-                obs, r = self.game.observe()
+                obs, r, _, _ = self.game.observe()
             probs = curr_p_strat[obs,:]
             action = np.argmax(np.random.multinomial(1, pvals=probs))
             self.game.action(action)
@@ -140,7 +140,7 @@ class FSP:
             if bridge_kuhn:
                 _, r, _, _ = self.game.observe()
             else:
-                _, r = self.game.observe()
+                _, r, _, _ = self.game.observe()
             self.game.action(None)
             #import pdb; pdb.set_trace()
             if len(buffer[player]) > 0:

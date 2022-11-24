@@ -1,3 +1,4 @@
+from typing import List
 import numpy as np
 from scipy.special import softmax
 import random
@@ -113,12 +114,9 @@ class fixed_pol(player):
         self.state = observation[0]
         self.r = observation[1]
 
-    def action(self):
+    def action(self, lvl=None, fict=None):
         probs = self.opt_pol[self.state, :]
-        try:
-            act = np.argmax(np.random.multinomial(1, pvals=probs))
-        except:
-            import pdb;pdb.set_trace()
+        act = np.argmax(np.random.multinomial(1, pvals=probs))
         return act
 
 
@@ -188,7 +186,7 @@ class OBL(RL):
     def add_to_mem(self):
         """
         Add episodes to dataset for learning belief and policy averaging
-        """        
+        """
         for i in range(self.belief_iters):
             self.fict_game.start_game()
             while not self.fict_game.ended:
@@ -263,11 +261,29 @@ class OT_RL(RL):
         self.learn_avg = averaging == "FSP_style"
         self.ot_lvls = 10
 
-    def set_other_players(self, other_players):
+    def set_other_players(self, other_players: List[player]):
+        """i.e. for player  #0, it sets other players as ["me", other_player]
+
+        Args:
+            other_players (List[player]): List of length n-1
+        """    
         self.other_players = other_players.copy()
         self.other_players.insert(self.id, "me")
 
-    def observe(self, observation, fict=False):
+    def observe(self, observation:List, fict=False):
+        """
+        For each level lvl within X levels of current level:
+            1) observation -> belief state b via belief[lvl]
+            2) get action a from observation via pi
+            3) set state in fictious game with b
+            4) player0 execute action a
+            5) player2 execute action b via pi
+            6) add traj to buffer
+
+        Args:
+            observation (List): From game.observe(), a list of [State, reward, turn number, prev actions]
+            fict (bool, optional): Ficticious. Defaults to False.
+        """
         self.state = observation[0]
         self.r = observation[1]
         turn_number = observation[2]
@@ -319,7 +335,7 @@ class OT_RL(RL):
                 self.opt_pol = self.pols[self.curr_lvl]
                 self.curr_opp_lvl = np.random.randint(self.curr_lvl)
 
-    def action(self, lvl=-1):
+    def action(self, lvl=-1, fict=False):
         if lvl == -1:
             probs = self.opt_pol[self.state, :]
         else:

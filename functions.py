@@ -14,11 +14,9 @@ def play_game(players, game):
         pass
     while not game.ended:
         player = players[game.curr_player]
-        # import pdb;pdb.set_trace()
-        print ("====================")
         player.observe(game.observe())
         game.action(player.action())
-    for i in players:
+    for _ in players:
         player = players[game.curr_player]
         player.observe(game.observe())
         game.action(None)
@@ -31,7 +29,7 @@ def play_to_convergence(players, game, max_iters=1000000, tol=1e-5):
     """
     Play chosen game repeatedly until players' policies have converged
     """
-    old_pol = [None for p in players]
+    old_pol = [None for _ in players]
     converged_itt = 0
     for i in range(max_iters):
         converged_itt += 1

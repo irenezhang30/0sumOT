@@ -311,7 +311,7 @@ class Bridge_Kuhn_Poker_int_io(Bridge_Kuhn_Poker):
             - Somehow call and fold is absorbed.
         """
         try:
-            assert self.turn_number <= 12
+            assert self.turn_number <= 14
         except:
             import pdb;pdb.set_trace()
         
